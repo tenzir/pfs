@@ -20,6 +20,8 @@
 
 #include "pfs/procfs.hpp"
 
+#undef unix
+
 int enum_net(std::vector<std::string>&& args)
 {
     (void)args;
