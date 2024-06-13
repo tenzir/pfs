@@ -28,7 +28,13 @@
 #include <system_error>
 
 #include "pfs/defer.hpp"
-#include "pfs/parsers.hpp"
+#include "pfs/parsers/cgroup.hpp"
+#include "pfs/parsers/maps.hpp"
+#include "pfs/parsers/mountinfo.hpp"
+#include "pfs/parsers/lines.hpp"
+#include "pfs/parsers/common.hpp"
+#include "pfs/parsers/task_io.hpp"
+#include "pfs/parsers/task_status.hpp"
 #include "pfs/task.hpp"
 #include "pfs/utils.hpp"
 
@@ -74,8 +80,8 @@ std::vector<cgroup> task::get_cgroups() const
     auto path = _task_root + CGROUP_FILE;
 
     std::vector<cgroup> output;
-    parsers::parse_lines(path, std::back_inserter(output),
-                         parsers::parse_cgroup_line);
+    parsers::parse_file_lines(path, std::back_inserter(output),
+                             parsers::parse_cgroup_line);
     return output;
 }
 
@@ -177,7 +183,8 @@ task_stat task::get_stat() const
 
     long pre_comm = ftell(fp);
 
-    static const size_t COMM_LEN_MAX = 18; // Actual comm (16) + parenthesis (2)
+    // https://elixir.bootlin.com/linux/v6.4.1/source/fs/proc/array.c#L99
+    static const size_t COMM_LEN_MAX = 66; // Actual comm (64) + parenthesis (2)
     st.comm.resize(COMM_LEN_MAX);
     size_t bytes = fread(&st.comm[0], 1, st.comm.size(), fp);
     if (bytes != st.comm.size())
@@ -206,53 +213,53 @@ task_stat task::get_stat() const
         "%c "   // state
         "%d "   // ppid
         "%d "   // pgrp
-        "%d "   // session
-        "%d "   // tty_nr
+        "%lld " // session
+        "%lld " // tty_nr
         "%d "   // tgpid
-        "%u "   // flags
-        "%lu "  // minflt
-        "%lu "  // cminflt
-        "%lu "  // majflt
-        "%lu "  // cmajflt
-        "%lu "  // utime
-        "%lu "  // stime
-        "%ld "  // cutime
-        "%ld "  // cstime
-        "%ld "  // priority
-        "%ld "  // nice
-        "%ld "  // num_threads
-        "%ld "  // itrealvalue
+        "%llu " // flags
+        "%llu " // minflt
+        "%llu " // cminflt
+        "%llu " // majflt
+        "%llu " // cmajflt
+        "%llu " // utime
+        "%llu " // stime
+        "%lld " // cutime
+        "%lld " // cstime
+        "%lld " // priority
+        "%lld " // nice
+        "%lld " // num_threads
+        "%llu " // itrealvalue
         "%llu " // starttime
-        "%lu "  // vsize
-        "%ld "  // rss
-        "%lu "  // rsslim
-        "%lu "  // startcode
-        "%lu "  // endcode
-        "%lu "  // startstack
-        "%lu "  // kstkesp
-        "%lu "  // kstkeip
-        "%lu "  // signal
-        "%lu "  // blocked
-        "%lu "  // sigignore
-        "%lu "  // sigcatch
-        "%lu "  // wchan
-        "%lu "  // nswap
-        "%lu "  // cnswap
-        "%d "   // exit_signal
-        "%d "   // processor
-        "%u "   // rt_priority
-        "%u "   // policy
+        "%llu " // vsize
+        "%llu " // rss
+        "%llu " // rsslim
+        "%llu " // startcode
+        "%llu " // endcode
+        "%llu " // startstack
+        "%llu " // kstkesp
+        "%llu " // kstkeip
+        "%llu " // signal
+        "%llu " // blocked
+        "%llu " // sigignore
+        "%llu " // sigcatch
+        "%llu " // wchan
+        "%llu " // nswap
+        "%llu " // cnswap
+        "%lld " // exit_signal
+        "%lld " // processor
+        "%llu " // rt_priority
+        "%llu " // policy
         "%llu " // delayacct_blkio_ticks
-        "%lu "  // guest_time
-        "%ld "  // cguest_time
-        "%lu "  // start_data
-        "%lu "  // end_data
-        "%lu "  // start_brk
-        "%lu "  // arg_start
-        "%lu "  // arg_end
-        "%lu "  // env_start
-        "%lu "  // env_end
-        "%lu ", // exit_code
+        "%llu " // guest_time
+        "%lld " // cguest_time
+        "%llu " // start_data
+        "%llu " // end_data
+        "%llu " // start_brk
+        "%llu " // arg_start
+        "%llu " // arg_end
+        "%llu " // env_start
+        "%llu " // env_end
+        "%llu ",// exit_code
         &state, &st.ppid, &st.pgrp, &st.session, &st.tty_nr, &st.tgpid,
         &st.flags, &st.minflt, &st.cminflt, &st.majflt, &st.cmajflt, &st.utime,
         &st.stime, &st.cutime, &st.cstime, &st.priority, &st.nice,
@@ -338,8 +345,8 @@ std::vector<mem_region> task::get_maps() const
     auto path = _task_root + MAPS_FILE;
 
     std::vector<mem_region> output;
-    parsers::parse_lines(path, std::back_inserter(output),
-                         parsers::parse_maps_line);
+    parsers::parse_file_lines(path, std::back_inserter(output),
+                              parsers::parse_maps_line);
     return output;
 }
 
@@ -357,8 +364,8 @@ std::vector<mount> task::get_mountinfo() const
     auto path = _task_root + MOUNTINFO_FILE;
 
     std::vector<mount> output;
-    parsers::parse_lines(path, std::back_inserter(output),
-                         parsers::parse_mountinfo_line);
+    parsers::parse_file_lines(path, std::back_inserter(output),
+                              parsers::parse_mountinfo_line);
     return output;
 }
 
@@ -380,12 +387,25 @@ std::unordered_map<int, fd> task::get_fds() const
     {
         fds.emplace(num, fd(path, num));
     }
+
     return fds;
+}
+
+std::set<ino_t> task::get_fds_inodes() const
+{
+    std::set<ino_t> inodes;
+
+    for (auto& fd : get_fds())
+    {
+        inodes.insert(fd.second.get_target_stat().st_ino);
+    }
+
+    return inodes;
 }
 
 net task::get_net() const
 {
-    return net(_procfs_root);
+    return net(_task_root);
 }
 
 ino_t task::get_ns(const std::string& ns) const
@@ -453,8 +473,8 @@ std::vector<id_map> task::get_uid_map() const
     auto path = _task_root + UID_MAP_FILE;
 
     std::vector<id_map> output;
-    parsers::parse_lines(path, std::back_inserter(output),
-                         parsers::parse_id_map_line);
+    parsers::parse_file_lines(path, std::back_inserter(output),
+                              parsers::parse_id_map_line);
     return output;
 }
 
@@ -464,8 +484,8 @@ std::vector<id_map> task::get_gid_map() const
     auto path = _task_root + GID_MAP_FILE;
 
     std::vector<id_map> output;
-    parsers::parse_lines(path, std::back_inserter(output),
-                         parsers::parse_id_map_line);
+    parsers::parse_file_lines(path, std::back_inserter(output),
+                              parsers::parse_id_map_line);
     return output;
 }
 

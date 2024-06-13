@@ -16,14 +16,15 @@
 
 #include <linux/kdev_t.h>
 
-#include "pfs/parsers.hpp"
+#include "pfs/parsers/common.hpp"
+#include "pfs/parser_error.hpp"
 #include "pfs/utils.hpp"
 
 namespace pfs {
 namespace impl {
 namespace parsers {
 
-dev_t parse_device(const std::string& device_str)
+dev_t parse_device(const std::string& device_str, utils::base base)
 {
     // Device format must be '<major>:<minor>'
 
@@ -46,10 +47,10 @@ dev_t parse_device(const std::string& device_str)
     try
     {
         int major;
-        utils::stot(tokens[MAJOR], major, utils::base::hex);
+        utils::stot(tokens[MAJOR], major, base);
 
         int minor;
-        utils::stot(tokens[MINOR], minor, utils::base::hex);
+        utils::stot(tokens[MINOR], minor, base);
 
         return MKDEV(major, minor);
     }

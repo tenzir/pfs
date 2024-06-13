@@ -14,7 +14,9 @@
  *  limitations under the License.
  */
 
-#include "pfs/parsers.hpp"
+#include "pfs/parsers/mountinfo.hpp"
+#include "pfs/parsers/common.hpp"
+#include "pfs/parser_error.hpp"
 #include "pfs/utils.hpp"
 
 namespace pfs {
@@ -73,7 +75,7 @@ mount parse_mountinfo_line(const std::string& line)
         utils::stot(tokens[MOUNT_ID], mnt.id);
         utils::stot(tokens[PARENT_ID], mnt.parent_id);
 
-        mnt.device = parse_device(tokens[DEVICE]);
+        mnt.device = parse_device(tokens[DEVICE], utils::base::decimal);
 
         mnt.root  = tokens[ROOT];
         mnt.point = tokens[MOUNT_POINT];

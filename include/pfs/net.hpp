@@ -17,10 +17,12 @@
 #ifndef PFS_NET_HPP
 #define PFS_NET_HPP
 
+#include <functional>
 #include <string>
 #include <vector>
 
 #include "types.hpp"
+#include "filter.hpp"
 
 namespace pfs {
 
@@ -41,36 +43,49 @@ public:
     net& operator=(net&&) = delete;
 
 public:
-    std::vector<net_device> get_dev() const;
-    
-    std::vector<net_socket> get_icmp() const;
-    std::vector<net_socket> get_icmp6() const;
-    std::vector<net_socket> get_raw() const;
-    std::vector<net_socket> get_raw6() const;
-    std::vector<net_socket> get_tcp() const;
-    std::vector<net_socket> get_tcp6() const;
-    std::vector<net_socket> get_udp() const;
-    std::vector<net_socket> get_udp6() const;
-    std::vector<net_socket> get_udplite() const;
-    std::vector<net_socket> get_udplite6() const;
+    using net_device_filter = std::function<filter::action(const net_device&)>;
+    using net_socket_filter = std::function<filter::action(const net_socket&)>;
+    using netlink_socket_filter = std::function<filter::action(const netlink_socket&)>;
+    using unix_socket_filter = std::function<filter::action(const unix_socket&)>;
+    using net_route_filter = std::function<filter::action(const net_route&)>;
+    using net_arp_filter = std::function<filter::action(const net_arp&)>;
 
-    std::vector<netlink_socket> get_netlink() const;
+public:
+    std::vector<net_device> get_dev(net_device_filter filter = nullptr) const;
 
-    std::vector<unix_socket> get_unix() const;
+    std::vector<net_socket> get_icmp(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_icmp6(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_raw(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_raw6(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_tcp(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_tcp6(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_udp(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_udp6(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_udplite(net_socket_filter filter = nullptr) const;
+    std::vector<net_socket> get_udplite6(net_socket_filter filter = nullptr) const;
 
-    std::vector<net_route> get_route() const;
+    std::vector<netlink_socket> get_netlink(netlink_socket_filter filter = nullptr) const;
+
+    std::vector<unix_socket> get_unix(unix_socket_filter filter = nullptr) const;
+
+    std::vector<net_route> get_route(net_route_filter filter = nullptr) const;
+
+    std::vector<net_arp> get_arp(net_arp_filter filter = nullptr) const;
 
 private:
     friend class task;
-    net(const std::string& procfs_root);
+    net(const std::string& parent_root);
 
 private:
-    std::vector<net_socket> get_net_sockets(const std::string& file) const;
+    std::vector<net_socket> get_net_sockets(const std::string& file,
+            net_socket_filter filter = nullptr) const;
 
-    static std::string build_net_root(const std::string& procfs_root);
+    static std::string build_net_root(const std::string& parent_root);
 
 private:
-    const std::string _procfs_root;
+    // Net has a "parent root", and not a "procfs root", because we could
+    // be looking at a net namespace of a specific process.
+    const std::string _parent_root;
     const std::string _net_root;
 };
 
