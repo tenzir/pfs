@@ -16,7 +16,8 @@
 
 #include <arpa/inet.h>
 
-#include "pfs/parsers.hpp"
+#include "pfs/parsers/net_socket.hpp"
+#include "pfs/parser_error.hpp"
 #include "pfs/utils.hpp"
 
 namespace pfs {
@@ -24,8 +25,6 @@ namespace impl {
 namespace parsers {
 
 namespace {
-
-static const size_t HEX_BYTE_LEN = 8;
 
 net_socket::net_state parse_state(const std::string& state_str)
 {

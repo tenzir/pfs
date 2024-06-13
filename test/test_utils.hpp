@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
 
 #include <linux/kdev_t.h>
 
@@ -30,16 +31,18 @@ inline T generate_random()
     return dist(rd);
 }
 
-inline std::string build_device_string(dev_t dev_major, dev_t dev_minor)
+inline std::string build_hex_device_string(dev_t dev_major, dev_t dev_minor)
 {
     std::ostringstream out;
     out << std::hex << dev_major << ":" << dev_minor;
     return out.str();
 }
 
-inline std::string build_device_string(dev_t dev)
+inline std::string build_dec_device_string(dev_t dev_major, dev_t dev_minor)
 {
-    return build_device_string(MAJOR(dev), MINOR(dev));
+    std::ostringstream out;
+    out << dev_major << ":" << dev_minor;
+    return out.str();
 }
 
 inline std::string create_temp_file(const std::vector<std::string>& lines)
@@ -65,6 +68,60 @@ inline std::string create_temp_file(const std::vector<std::string>& lines)
 
     return std::string(temp);
 }
+
+class temp_dir
+{
+public:
+    temp_dir()
+    {
+        char temp_dir[] = "/tmp/pfs_test_XXXXXX";
+        char* dirpath   = mkdtemp(temp_dir);
+        if (!dirpath)
+        {
+            throw std::runtime_error("Cannot create temp directory");
+        }
+        else
+        {
+            _sandbox_root = std::string{dirpath};
+        }
+    }
+    ~temp_dir() noexcept { cleanup_temp_dir(); }
+
+    const std::string& get_root() const noexcept { return _sandbox_root; }
+
+    void create_file(const std::string& relative_path,
+                     const std::string& content) const
+    {
+        const std::string file_path = _sandbox_root + '/' + relative_path;
+        const std::string dir       = file_path.substr(0, file_path.rfind("/"));
+        const int result =
+            std::system((std::string{"mkdir -p "} + dir).c_str());
+        if (result != 0)
+        {
+            throw std::runtime_error("Cannot create temp directory");
+        }
+        std::ofstream file(file_path);
+        if (!file)
+        {
+            throw std::runtime_error("Cannot open temp file");
+        }
+
+        file << content;
+    }
+
+private:
+    void cleanup_temp_dir() noexcept
+    {
+        const int result =
+            std::system((std::string{"rm -rf "} + _sandbox_root).c_str());
+        if (result != 0)
+        {
+            perror(std::string{"Failed to clean up temp dir: " + _sandbox_root}
+                       .c_str());
+        }
+    }
+    std::string _sandbox_root;
+};
 
 template <typename T>
 inline std::string join(const T& container)

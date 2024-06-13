@@ -19,6 +19,7 @@
 #include <sstream>
 
 #include "pfs/procfs.hpp"
+#include "pfs/sysfs.hpp"
 
 template <typename T>
 inline std::string join(const T& container)
@@ -150,7 +151,7 @@ inline std::ostream& operator<<(std::ostream& out,
     return out;
 }
 
-inline std::ostream& operator<<(std::ostream& out, 
+inline std::ostream& operator<<(std::ostream& out,
                                 const pfs::net_device& device)
 {
     out << "interface[" << device.interface << "] ";
@@ -687,7 +688,8 @@ inline std::ostream& operator<<(std::ostream& out, const pfs::zone& zone)
 
 inline std::ostream& operator<<(std::ostream& out, const pfs::fd& fd)
 {
-    out << "target[" << fd.get_target() << "] ";
+    std::string target = fd.get_target();
+    out << "target[" << target << "] ";
     return out;
 }
 
@@ -723,6 +725,49 @@ inline std::ostream& operator<<(std::ostream& out, const pfs::net_route& route)
     out << "mtu[" << route.mtu << "] ";
     out << "window[" << route.window << "] ";
     out << "irtt[" << route.irtt << "] ";
+
+    return out;
+}
+
+inline std::ostream& operator<<(std::ostream& out, const pfs::net_arp& arp)
+{
+    out << "ip_address[" << arp.ip_address << "] ";
+    out << "type[" << arp.type << "] ";
+    out << "flags[" << arp.flags << "] ";
+    out << "hw_address[" << arp.hw_address << "] ";
+    out << "mask[" << arp.mask << "] ";
+    out << "device[" << arp.device << "] ";
+
+    return out;
+}
+
+inline std::ostream& operator<<(std::ostream& out,
+                                const pfs::block_stat& stat)
+{
+    out << "read_ios[" << stat.read_ios << "] ";
+    out << "read_merges[" << stat.read_merges << "] ";
+    out << "read_sectors[" << stat.read_sectors << "] ";
+    out << "read_ticks[" << stat.read_ticks << "] ";
+    out << "write_ios[" << stat.write_ios << "] ";
+    out << "write_merges[" << stat.write_merges << "] ";
+    out << "write_sectors[" << stat.write_sectors << "] ";
+    out << "write_ticks[" << stat.write_ticks << "] ";
+    out << "in_flight[" << stat.in_flight << "] ";
+    out << "io_ticks[" << stat.io_ticks << "] ";
+    out << "time_in_queue[" << stat.time_in_queue << "] ";
+    out << "discard_ios[" << stat.discard_ios << "] ";
+    out << "discard_merges[" << stat.discard_merges << "] ";
+    out << "discard_sectors[" << stat.discard_sectors << "] ";
+    out << "discard_ticks[" << stat.discard_ticks << "] ";
+
+    return out;
+}
+
+inline std::ostream& operator<<(std::ostream& out,
+                                const pfs::block_queue& queue)
+{
+    out << std::boolalpha;
+    out << "rotational[" << queue.get_rotational() << "] ";
 
     return out;
 }

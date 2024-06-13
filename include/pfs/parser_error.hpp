@@ -17,7 +17,8 @@
 #ifndef PFS_PARSER_ERROR_HPP
 #define PFS_PARSER_ERROR_HPP
 
-#include <exception>
+#include <string>
+#include <stdexcept>
 
 namespace pfs {
 

@@ -14,7 +14,9 @@
  *  limitations under the License.
  */
 
-#include "pfs/parsers.hpp"
+#include "pfs/parsers/maps.hpp"
+#include "pfs/parsers/common.hpp"
+#include "pfs/parser_error.hpp"
 #include "pfs/utils.hpp"
 
 namespace pfs {
@@ -179,7 +181,7 @@ mem_region parse_maps_line(const std::string& line)
 
     region.offset = parse_mem_region_offset(tokens[OFFSET]);
 
-    region.device = parse_device(tokens[DEVICE]);
+    region.device = parse_device(tokens[DEVICE], utils::base::hex);
 
     region.inode = parse_mem_region_inode(tokens[INODE]);
 
